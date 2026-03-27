@@ -11,9 +11,19 @@ app.use(express.json());
 
 // Middleware for CORS
 app.use((req: Request, res: Response, next: NextFunction): void => {
-  const allowedOrigin = process.env.FRONT_END_URL || 'http://localhost:5173';
+  const allowedOrigins = [
+    process.env.FRONT_END_URL || 'http://localhost:5173',
+    process.env.STAFF_FRONT_END_URL,
+  ].filter(Boolean) as string[];
+  const requestOrigin = req.headers.origin;
 
-  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  // Reflect the requesting origin only if it is in the allowlist.
+  const matchedOrigin =
+    requestOrigin && allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : allowedOrigins[0];
+
+  res.setHeader('Access-Control-Allow-Origin', matchedOrigin);
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '1800');
   res.setHeader(
@@ -24,6 +34,7 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
     'Access-Control-Allow-Methods',
     'PUT, POST, GET, DELETE, PATCH, OPTIONS'
   );
+  res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') {
     res.sendStatus(204);
