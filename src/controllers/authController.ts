@@ -13,6 +13,83 @@ import {
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 
+type AppRole = 'user' | 'admin' | 'staff';
+
+const createLoginResponse = (user: any) => {
+  const token = jwt.sign(
+    {
+      userId: user._id,
+      email: user.email,
+      username: user.name,
+      role: user.role || 'user',
+    },
+    process.env.JWT_SECRET || 'secret',
+    { expiresIn: '7d' }
+  );
+
+  return {
+    message: 'Login successful',
+    token,
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      entries_count: user.entries_count || 0,
+      role: user.role || 'user',
+    },
+  };
+};
+
+const loginWithExpectedRole = async (
+  req: Request,
+  res: Response,
+  expectedRole?: AppRole
+): Promise<any> => {
+  try {
+    const { email, password } = req.body;
+
+    if (!validateEmail(email))
+      return res.status(400).json({ message: 'Invalid email' });
+    if (!password)
+      return res.status(400).json({ message: 'Password is required' });
+
+    const user = await loginUserService(email, password);
+    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+
+    if (!user.isActive) {
+      return res
+        .status(403)
+        .json({ message: 'Your account has been blocked. Please contact support.' });
+    }
+
+    if (!user.isVerified) {
+      return res
+        .status(401)
+        .json({ message: 'Please verify your email to log in.' });
+    }
+
+    if (expectedRole && user.role !== expectedRole) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    res.status(200).json(createLoginResponse(user));
+  } catch (error: any) {
+    console.error('Error in user login:', error);
+    if (
+      error.message === 'User not found' ||
+      error.message === 'Invalid email or password'
+    ) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    if (error.message === 'Email is not verified') {
+      return res
+        .status(401)
+        .json({ message: 'Please verify your email to log in.' });
+    }
+    res.status(500).json({ message: 'Server error, please try again' });
+  }
+};
+
 export const register = async (req: Request, res: Response): Promise<any> => {
   try {
     const { name, email, password, date_of_birth, is_over_18, role } = req.body;
@@ -36,8 +113,10 @@ export const register = async (req: Request, res: Response): Promise<any> => {
       return res.status(400).json({ message: 'is_over_18 must be a boolean' });
 
     // Validate role if provided
-    if (role && role !== 'user' && role !== 'admin') {
-      return res.status(400).json({ message: 'Invalid role. Must be "user" or "admin"' });
+    if (role && role !== 'user' && role !== 'admin' && role !== 'staff') {
+      return res
+        .status(400)
+        .json({ message: 'Invalid role. Must be "user", "admin" or "staff"' });
     }
 
     const newUser = await registerUser(
@@ -69,64 +148,64 @@ export const register = async (req: Request, res: Response): Promise<any> => {
 };
 
 export const login = async (req: Request, res: Response): Promise<any> => {
-  try {
-    const { email, password } = req.body;
+  return loginWithExpectedRole(req, res);
+};
 
+export const registerStaff = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const { name, email, password, date_of_birth, is_over_18 } = req.body;
+
+    // Input validation
+    if (!validateName(name))
+      return res.status(400).json({ message: 'Invalid name' });
     if (!validateEmail(email))
       return res.status(400).json({ message: 'Invalid email' });
-    if (!password)
-      return res.status(400).json({ message: 'Password is required' });
-
-    const user = await loginUserService(email, password);
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
-
-    if (!user.isActive) {
-      return res.status(403).json({ message: 'Your account has been blocked. Please contact support.' });
-    }
-
-    if (!user.isVerified) {
+    if (!validatePassword(password))
       return res
-        .status(401)
-        .json({ message: 'Please verify your email to log in.' });
-    }
+        .status(400)
+        .json({
+          message:
+            'Password must be at least 8 characters with one letter, one number, and one special character',
+        });
 
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        email: user.email,
-        username: user.name,
-        role: user.role || 'user',
-      },
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '7d' } // 7 days token expiry
+    if (!date_of_birth)
+      return res.status(400).json({ message: 'Date of birth is required' });
+    if (typeof is_over_18 !== 'boolean')
+      return res.status(400).json({ message: 'is_over_18 must be a boolean' });
+
+    const newUser = await registerUser(
+      name,
+      email,
+      password,
+      new Date(date_of_birth),
+      is_over_18,
+      'staff'
     );
 
-    res.status(200).json({
-      message: 'Login successful',
-      token,
+    res.status(201).json({
+      message:
+        'User registered successfully. Please check your email for the verification code.',
       user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        entries_count: user.entries_count || 0,
-        role: user.role || 'user',
+        _id: newUser?.user._id,
+        name: newUser?.user.name,
+        email: newUser?.user.email,
       },
+      requiresVerification: true,
     });
   } catch (error: any) {
-    console.error('Error in user login:', error);
-    if (
-      error.message === 'User not found' ||
-      error.message === 'Invalid email or password'
-    ) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-    if (error.message === 'Email is not verified') {
-      return res
-        .status(401)
-        .json({ message: 'Please verify your email to log in.' });
+    console.error('Error in staff registration:', error);
+    if (error.message === 'Email already exists') {
+      return res.status(409).json({ message: 'Email already exists' });
     }
     res.status(500).json({ message: 'Server error, please try again' });
   }
+};
+
+export const loginStaff = async (req: Request, res: Response): Promise<any> => {
+  return loginWithExpectedRole(req, res, 'staff');
 };
 
 export const verifyOTP = async (

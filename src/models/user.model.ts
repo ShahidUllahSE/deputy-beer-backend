@@ -14,7 +14,7 @@ export interface IUser extends Document {
   entries_count: number;
   points: number;
   created_at: Date;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'staff';
 }
 
 const UserSchema: Schema<IUser> = new Schema(
@@ -31,7 +31,7 @@ const UserSchema: Schema<IUser> = new Schema(
     entries_count: { type: Number, default: 0 },
     points: { type: Number, default: 0 },
     created_at: { type: Date, default: Date.now },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'staff'], default: 'user' },
   },
   { timestamps: true }
 );

@@ -9,7 +9,7 @@ export const registerUser = async (
   password: string,
   date_of_birth: Date,
   is_over_18: boolean,
-  role: 'user' | 'admin' = 'user'
+  role: 'user' | 'admin' | 'staff' = 'user'
 ): Promise<{ user: IUser; otp: string } | null> => {
   try {
     const existingUser = await User.findOne({ email });
