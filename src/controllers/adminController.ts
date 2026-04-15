@@ -97,12 +97,17 @@ export const getAllUsersController = async (req: Request, res: Response): Promis
  */
 export const getAllStaffUsersController = async (req: Request, res: Response): Promise<any> => {
   try {
-    const users = await getAllStaffUsers();
+    const pageParam = Number.parseInt(String(req.query.page ?? '1'), 10);
+    const limitParam = Number.parseInt(String(req.query.limit ?? '10'), 10);
+    const page = Number.isNaN(pageParam) ? 1 : pageParam;
+    const limit = Number.isNaN(limitParam) ? 10 : limitParam;
+    const result = await getAllStaffUsers(page, limit);
 
     return res.status(200).json({
       message: 'Staff users retrieved successfully',
-      users,
-      count: users.length,
+      users: result.users,
+      count: result.users.length,
+      pagination: result.pagination,
     });
   } catch (error: any) {
     console.error('Error fetching staff users:', error);

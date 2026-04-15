@@ -51,11 +51,19 @@ export const getAllUsers = async () => {
 /**
  * Get only staff users with their statistics
  */
-export const getAllStaffUsers = async () => {
+export const getAllStaffUsers = async (page: number = 1, limit: number = 10) => {
   try {
+    const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 10;
+    const skip = (safePage - 1) * safeLimit;
+
+    const totalCount = await User.countDocuments({ role: 'staff' });
+
     const users = await User.find({ role: 'staff' })
       .select('-password -verificationOTP -verificationOTPExpiry')
-      .sort({ created_at: -1 });
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(safeLimit);
 
     const usersWithStats = await Promise.all(
       users.map(async (user) => {
@@ -85,7 +93,17 @@ export const getAllStaffUsers = async () => {
       })
     );
 
-    return usersWithStats;
+    return {
+      users: usersWithStats,
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / safeLimit) || 1,
+        hasNextPage: skip + usersWithStats.length < totalCount,
+        hasPrevPage: safePage > 1,
+      },
+    };
   } catch (error) {
     console.error('Error fetching staff users:', error);
     throw new Error('Error fetching staff users');
