@@ -12,7 +12,11 @@
     "migrate": "ts-node scripts/migrateQRCodes.ts",
     "import-csv": "ts-node scripts/importQRCodesFromCSV.ts",
     "insert-test": "ts-node scripts/insertTestQRCodes.ts",
-    "set-admin": "ts-node scripts/setAdminRole.ts"
+    "insert-test-codes": "ts-node scripts/insertTestCodes.ts",
+    "set-admin": "ts-node scripts/setAdminRole.ts",
+    "check-storage": "ts-node scripts/checkStorage.ts",
+    "optimize-storage": "ts-node scripts/optimizeStorage.ts",
+    "migrate-data": "ts-node scripts/migrateData.ts"
   },
   "keywords": [],
   "author": "",

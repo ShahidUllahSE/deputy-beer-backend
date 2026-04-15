@@ -43,7 +43,7 @@ const createLoginResponse = (user: any) => {
 const loginWithExpectedRole = async (
   req: Request,
   res: Response,
-  expectedRole?: AppRole
+  expectedRole?: AppRole | AppRole[]
 ): Promise<any> => {
   try {
     const { email, password } = req.body;
@@ -68,8 +68,11 @@ const loginWithExpectedRole = async (
         .json({ message: 'Please verify your email to log in.' });
     }
 
-    if (expectedRole && user.role !== expectedRole) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+    if (expectedRole) {
+      const allowedRoles = Array.isArray(expectedRole) ? expectedRole : [expectedRole];
+      if (!allowedRoles.includes(user.role as AppRole)) {
+        return res.status(401).json({ message: 'Invalid email or password' });
+      }
     }
 
     res.status(200).json(createLoginResponse(user));
@@ -93,7 +96,7 @@ const loginWithExpectedRole = async (
 export const register = async (req: Request, res: Response): Promise<any> => {
   try {
     const { name, email, password, date_of_birth, is_over_18, role } = req.body;
-
+ 
     // Input validation
     if (!validateName(name))
       return res.status(400).json({ message: 'Invalid name' });
@@ -205,7 +208,8 @@ export const registerStaff = async (
 };
 
 export const loginStaff = async (req: Request, res: Response): Promise<any> => {
-  return loginWithExpectedRole(req, res, 'staff');
+  // Staff panel accepts staff users and admins.
+  return loginWithExpectedRole(req, res, ['staff', 'admin']);
 };
 
 export const verifyOTP = async (

@@ -1,5 +1,18 @@
 import { Request, Response } from 'express';
-import { getAllUsers, getUserHistory, blockUser, unblockUser, deleteUser, getQRCodeStats } from '../services/adminService';
+import {
+  getAllUsers,
+  getAllStaffUsers,
+  getUserHistory,
+  getStaffUserHistory,
+  blockUser,
+  blockStaffUser,
+  unblockUser,
+  unblockStaffUser,
+  deleteUser,
+  deleteStaffUser,
+  updateStaffUser,
+  getQRCodeStats,
+} from '../services/adminService';
 import { loginUserService } from '../services/userService';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
@@ -80,6 +93,27 @@ export const getAllUsersController = async (req: Request, res: Response): Promis
 };
 
 /**
+ * Get only staff users (admin only)
+ */
+export const getAllStaffUsersController = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const users = await getAllStaffUsers();
+
+    return res.status(200).json({
+      message: 'Staff users retrieved successfully',
+      users,
+      count: users.length,
+    });
+  } catch (error: any) {
+    console.error('Error fetching staff users:', error);
+    return res.status(500).json({
+      message: 'Server error while fetching staff users',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Get specific user's history (admin only)
  */
 export const getUserHistoryController = async (req: Request, res: Response): Promise<any> => {
@@ -105,6 +139,35 @@ export const getUserHistoryController = async (req: Request, res: Response): Pro
     console.error('Error fetching user history:', error);
     return res.status(500).json({
       message: 'Server error while fetching user history',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get specific staff user's history (admin only)
+ */
+export const getStaffUserHistoryController = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const userIdString = Array.isArray(userId) ? userId[0] : userId;
+    const result = await getStaffUserHistory(userIdString);
+
+    return res.status(200).json({
+      message: 'Staff user history retrieved successfully',
+      history: result.history,
+      user: result.user,
+      count: result.history.length,
+    });
+  } catch (error: any) {
+    console.error('Error fetching staff user history:', error);
+    return res.status(500).json({
+      message: 'Server error while fetching staff user history',
       error: error.message,
     });
   }
@@ -143,6 +206,38 @@ export const blockUserController = async (req: Request, res: Response): Promise<
 };
 
 /**
+ * Block a staff user (admin only)
+ */
+export const blockStaffUserController = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const userIdString = Array.isArray(userId) ? userId[0] : userId;
+    const user = await blockStaffUser(userIdString);
+
+    return res.status(200).json({
+      message: 'Staff user blocked successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error blocking staff user:', error);
+    return res.status(500).json({
+      message: 'Server error while blocking staff user',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Unblock a user (admin only)
  */
 export const unblockUserController = async (req: Request, res: Response): Promise<any> => {
@@ -175,6 +270,38 @@ export const unblockUserController = async (req: Request, res: Response): Promis
 };
 
 /**
+ * Unblock a staff user (admin only)
+ */
+export const unblockStaffUserController = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const userIdString = Array.isArray(userId) ? userId[0] : userId;
+    const user = await unblockStaffUser(userIdString);
+
+    return res.status(200).json({
+      message: 'Staff user unblocked successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error unblocking staff user:', error);
+    return res.status(500).json({
+      message: 'Server error while unblocking staff user',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Delete a user (admin only)
  */
 export const deleteUserController = async (req: Request, res: Response): Promise<any> => {
@@ -196,6 +323,67 @@ export const deleteUserController = async (req: Request, res: Response): Promise
     console.error('Error deleting user:', error);
     return res.status(500).json({
       message: 'Server error while deleting user',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Update a staff user (admin only)
+ */
+export const updateStaffUserController = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const allowedUpdates = {
+      name: req.body.name,
+      email: req.body.email,
+      isActive: req.body.isActive,
+      isVerified: req.body.isVerified,
+    };
+
+    const userIdString = Array.isArray(userId) ? userId[0] : userId;
+    const user = await updateStaffUser(userIdString, allowedUpdates);
+
+    return res.status(200).json({
+      message: 'Staff user updated successfully',
+      user,
+    });
+  } catch (error: any) {
+    console.error('Error updating staff user:', error);
+    return res.status(500).json({
+      message: 'Server error while updating staff user',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Delete a staff user (admin only)
+ */
+export const deleteStaffUserController = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const userIdString = Array.isArray(userId) ? userId[0] : userId;
+    const result = await deleteStaffUser(userIdString);
+
+    return res.status(200).json({
+      message: 'Staff user deleted successfully',
+      result,
+    });
+  } catch (error: any) {
+    console.error('Error deleting staff user:', error);
+    return res.status(500).json({
+      message: 'Server error while deleting staff user',
       error: error.message,
     });
   }
